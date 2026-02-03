@@ -15,9 +15,22 @@ export default function TournamentCreator() {
   });
 
   const handleCreate = async () => {
-    // 1. Limpiar y extraer parejas del texto (una pareja por línea)
-    const lines = rawData.split('\n').filter(line => line.trim() !== '');
+    // 1. Limpiar y normalizar parejas
+    // Filtramos líneas vacías y procesamos el formato de nombres
+    const lines = rawData.split('\n')
+      .map(line => line.trim())
+      .filter(line => line !== '');
+
     if (lines.length < 2) return alert("Carga al menos 2 parejas");
+
+    // Normalización: Soporta "J1-J2", "J1 -J2", "J1 - J2", etc.
+    const normalizedTeams = lines.map(line => {
+      if (line.includes('-')) {
+        const parts = line.split('-').map(p => p.trim());
+        return `${parts[0]} - ${parts[1]}`;
+      }
+      return line; // Si no hay guion, se guarda tal cual
+    });
 
     // 2. Crear el Torneo
     const tournamentId = await db.tournaments.add({
@@ -30,20 +43,18 @@ export default function TournamentCreator() {
     });
 
     // 3. Distribución Automática en Grupos
-    const numGroups = Math.ceil(lines.length / config.teamsPerGroup);
     const alphabet = "ABCDEFGHIJ".split("");
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < normalizedTeams.length; i++) {
       const groupIndex = Math.floor(i / config.teamsPerGroup);
       const groupName = `Zona ${alphabet[groupIndex]}`;
       
-      // Generar enfrentamientos Round Robin para la zona
-      // Buscamos a los compañeros de grupo que ya fueron procesados para armar los cruces
-      const currentTeam = lines[i].trim();
+      const currentTeam = normalizedTeams[i];
       const startIndex = groupIndex * config.teamsPerGroup;
       
+      // Generar enfrentamientos Round Robin para la zona
       for (let j = startIndex; j < i; j++) {
-        const opponentTeam = lines[j].trim();
+        const opponentTeam = normalizedTeams[j];
         await db.matches.add({
           tournamentId: Number(tournamentId),
           stage: 'group',
@@ -74,12 +85,12 @@ export default function TournamentCreator() {
           <div className="grid grid-cols-2 gap-4">
             <input 
               placeholder="Categoría"
-              className="p-3 bg-slate-50 rounded-xl outline-none"
+              className="p-3 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
               onChange={e => setConfig({...config, category: e.target.value})}
             />
             <input 
               placeholder="Club"
-              className="p-3 bg-slate-50 rounded-xl outline-none"
+              className="p-3 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
               onChange={e => setConfig({...config, club: e.target.value})}
             />
           </div>
@@ -91,11 +102,14 @@ export default function TournamentCreator() {
           <ClipboardList size={18} /> Pegar Parejas de WhatsApp
         </h3>
         <textarea 
-          placeholder="Pareja 1 (Jugador A / Jugador B)&#10;Pareja 2 (Jugador C / Jugador D)&#10;..."
+          placeholder="Jugador 1 - Jugador 2&#10;Jugador 3-Jugador 4&#10;Jugador 5 -Jugador 6"
           className="w-full h-48 p-4 bg-slate-50 rounded-2xl font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-500"
           onChange={e => setRawData(e.target.value)}
         />
-        <p className="text-[10px] text-slate-400 mt-2 italic">* Una pareja por cada línea de texto.</p>
+        <div className="mt-2 space-y-1">
+          <p className="text-[10px] text-slate-400 italic">* Una pareja por cada línea de texto.</p>
+          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tighter">✓ Soporta formatos con o sin espacios entre guiones.</p>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
@@ -106,7 +120,7 @@ export default function TournamentCreator() {
             <input 
               type="number" 
               defaultValue={4}
-              className="w-full p-3 bg-slate-50 rounded-xl font-bold text-emerald-600"
+              className="w-full p-3 bg-slate-50 rounded-xl font-bold text-emerald-600 outline-none"
               onChange={e => setConfig({...config, teamsPerGroup: Number(e.target.value)})}
             />
           </div>
@@ -115,7 +129,7 @@ export default function TournamentCreator() {
             <input 
               type="number" 
               defaultValue={2}
-              className="w-full p-3 bg-slate-50 rounded-xl font-bold text-emerald-600"
+              className="w-full p-3 bg-slate-50 rounded-xl font-bold text-emerald-600 outline-none"
               onChange={e => setConfig({...config, qualifiedPerGroup: Number(e.target.value)})}
             />
           </div>
@@ -124,7 +138,7 @@ export default function TournamentCreator() {
 
       <button 
         onClick={handleCreate}
-        className="w-full bg-emerald-500 text-slate-900 font-black py-5 rounded-2xl shadow-xl shadow-emerald-100 uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all"
+        className="w-full bg-emerald-500 text-slate-900 font-black py-5 rounded-2xl shadow-xl shadow-emerald-100 uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all"
       >
         Crear y Generar Fixture
       </button>
