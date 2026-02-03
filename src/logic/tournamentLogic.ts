@@ -3,18 +3,18 @@ export interface TeamStats {
   matchesWon: number;
   gamesWon: number;
   gamesLost: number;
-  diff: number;
 }
 
-export const calculateStandings = (matches: any[], teams: any[]) => {
+// Criterio: Partidos Ganados > Games Ganados > Diferencia Games
+export const calculateStandings = (matches: any[], teams: string[]): TeamStats[] => {
   const stats: Record<string, TeamStats> = {};
 
-  teams.forEach(t => {
-    stats[t.id] = { teamId: t.id, matchesWon: 0, gamesWon: 0, gamesLost: 0, diff: 0 };
+  teams.forEach(id => {
+    stats[id] = { teamId: id, matchesWon: 0, gamesWon: 0, gamesLost: 0 };
   });
 
   matches.forEach(m => {
-    if (!m.score) return;
+    if (!m.score || !m.score.includes('-')) return;
     const [g1, g2] = m.score.split('-').map(Number);
     
     stats[m.team1Id].gamesWon += g1;
@@ -33,45 +33,36 @@ export const calculateStandings = (matches: any[], teams: any[]) => {
   });
 };
 
-// src/logic/tournamentLogic.ts
-
 export const generatePlayoffs = (standingsByGroup: Record<string, TeamStats[]>, qualifiedPerGroup: number) => {
   let allQualified: string[] = [];
   
-  // 1. Extraer clasificados respetando el orden de mérito de cada grupo
-  // Primero todos los 1eros, luego todos los 2dos, etc.
-  const maxRank = qualifiedPerGroup;
-  for (let r = 0; r < maxRank; r++) {
+  // Extraer clasificados: Primero todos los 1ros, luego los 2dos...
+  for (let r = 0; r < qualifiedPerGroup; r++) {
     Object.keys(standingsByGroup).forEach(groupName => {
       const team = standingsByGroup[groupName][r];
       if (team) allQualified.push(team.teamId);
     });
   }
 
-  const totalQualified = allQualified.length;
+  const total = allQualified.length;
+  let stage: 'final' | 'semi' | 'quarter' | 'round_of_16' | 'round_of_32' = 'final';
 
-  // 2. Determinar el nombre de la ronda inicial
-  // 2 equipos = final, 4 = semi, 8 = 4tos, 16 = 8vos, 32 = 16avos
-  let stageName: 'final' | 'semi' | 'quarter' | 'round_of_16' | 'round_of_32' = 'final';
-  
-  if (totalQualified <= 2) stageName = 'final';
-  else if (totalQualified <= 4) stageName = 'semi';
-  else if (totalQualified <= 8) stageName = 'quarter';
-  else if (totalQualified <= 16) stageName = 'round_of_16';
-  else stageName = 'round_of_32';
+  if (total > 16) stage = 'round_of_32';
+  else if (total > 8) stage = 'round_of_16';
+  else if (total > 4) stage = 'quarter';
+  else if (total > 2) stage = 'semi';
 
   const playoffMatches = [];
-  const numMatches = Math.floor(totalQualified / 2);
+  const numMatches = Math.floor(total / 2);
 
-  // 3. Emparejamiento: Mejor clasificado vs Peor clasificado (Cruces tradicionales)
+  // Cruce: Mejor contra Peor (1ero vs último clasificado)
   for (let i = 0; i < numMatches; i++) {
     playoffMatches.push({
       team1Id: allQualified[i],
-      team2Id: allQualified[totalQualified - 1 - i],
-      stage: stageName,
+      team2Id: allQualified[total - 1 - i],
+      stage,
       score: ''
     });
   }
-
   return playoffMatches;
 };
