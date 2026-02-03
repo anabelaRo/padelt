@@ -4,14 +4,13 @@
  * Calcula la tabla de posiciones de un grupo
  */
 export const calculateStandings = (matches: any[], teams: string[]) => {
-  // Inicializamos las estadísticas para cada equipo
   const stats = teams.reduce((acc: any, team) => {
     acc[team] = { 
       team, 
       played: 0, 
-      won: 0, 
+      won: 0, // PG
       lost: 0, 
-      gamesWon: 0, 
+      gamesWon: 0, // GG
       gamesLost: 0, 
       diff: 0, 
       points: 0 
@@ -20,35 +19,32 @@ export const calculateStandings = (matches: any[], teams: string[]) => {
   }, {});
 
   matches.forEach(m => {
-    const scoreStr = m.score || "";
-    const scores = scoreStr.split('-').map(Number);
-    
-    // Solo procesar si el score es válido (ej: "6-2")
+    if (!m.score || !m.score.includes('-')) return;
+
+    const scores = m.score.split('-').map(Number);
     if (scores.length !== 2 || isNaN(scores[0]) || isNaN(scores[1])) return;
 
     const [s1, s2] = scores;
-    const t1 = m.team1Id;
-    const t2 = m.team2Id;
+    
+    // Aseguramos que los equipos existan en el objeto stats
+    if (stats[m.team1Id] && stats[m.team2Id]) {
+      stats[m.team1Id].played += 1;
+      stats[m.team2Id].played += 1;
+      stats[m.team1Id].gamesWon += s1;
+      stats[m.team1Id].gamesLost += s2;
+      stats[m.team2Id].gamesWon += s2;
+      stats[m.team2Id].gamesLost += s1;
 
-    // Verificamos que los equipos existan en nuestro objeto de estadísticas
-    if (!stats[t1] || !stats[t2]) return;
-
-    stats[t1].played++;
-    stats[t2].played++;
-    stats[t1].gamesWon += s1;
-    stats[t1].gamesLost += s2;
-    stats[t2].gamesWon += s2;
-    stats[t2].gamesLost += s1;
-
-    // LÓGICA DE PARTIDOS GANADOS (PG)
-    if (s1 > s2) {
-      stats[t1].won += 1;   // Suma 1 a Partidos Ganados
-      stats[t1].points += 1; // Suma 1 a Puntos
-      stats[t2].lost += 1;
-    } else if (s2 > s1) {
-      stats[t2].won += 1;   // Suma 1 a Partidos Ganados
-      stats[t2].points += 1; // Suma 1 a Puntos
-      stats[t1].lost += 1;
+      // CÁLCULO DE GANADOR (PG)
+      if (s1 > s2) {
+        stats[m.team1Id].won = (stats[m.team1Id].won || 0) + 1;
+        stats[m.team1Id].points = (stats[m.team1Id].points || 0) + 1;
+        stats[m.team2Id].lost += 1;
+      } else if (s2 > s1) {
+        stats[m.team2Id].won = (stats[m.team2Id].won || 0) + 1;
+        stats[m.team2Id].points = (stats[m.team2Id].points || 0) + 1;
+        stats[m.team1Id].lost += 1;
+      }
     }
   });
 
@@ -63,6 +59,8 @@ export const calculateStandings = (matches: any[], teams: string[]) => {
       b.gamesWon - a.gamesWon
     );
 };
+
+// ... (el resto de tus funciones promoteWinner y generatePlayoffs)
 /**
  * Genera la primera fase de Playoffs (Cuartos o Semis) desde las zonas
  */
