@@ -11,7 +11,7 @@ export default function Layout() {
       {/* Header Superior */}
       <header className="bg-slate-900 text-white p-5 shadow-lg border-b-2 border-emerald-500">
         <h1 className="text-xl font-black italic tracking-tighter">
-          PADEL PRO <span className="text-emerald-400">AMERICANO</span>
+          PADELT <span className="text-emerald-400">Gestión de Torneos</span>
         </h1>
       </header>
 
