@@ -4,6 +4,7 @@
  * Calcula la tabla de posiciones de un grupo
  */
 export const calculateStandings = (matches: any[], teams: string[]) => {
+  // Inicializamos las estadísticas para cada equipo
   const stats = teams.reduce((acc: any, team) => {
     acc[team] = { 
       team, 
@@ -19,31 +20,48 @@ export const calculateStandings = (matches: any[], teams: string[]) => {
   }, {});
 
   matches.forEach(m => {
-    const scores = m.score?.split('-').map(Number);
-    if (!scores || scores.length !== 2 || isNaN(scores[0])) return;
+    const scoreStr = m.score || "";
+    const scores = scoreStr.split('-').map(Number);
+    
+    // Solo procesar si el score es válido (ej: "6-2")
+    if (scores.length !== 2 || isNaN(scores[0]) || isNaN(scores[1])) return;
 
     const [s1, s2] = scores;
-    stats[m.team1Id].played++;
-    stats[m.team2Id].played++;
-    stats[m.team1Id].gamesWon += s1;
-    stats[m.team1Id].gamesLost += s2;
-    stats[m.team2Id].gamesWon += s2;
-    stats[m.team2Id].gamesLost += s1;
+    const t1 = m.team1Id;
+    const t2 = m.team2Id;
 
+    // Verificamos que los equipos existan en nuestro objeto de estadísticas
+    if (!stats[t1] || !stats[t2]) return;
+
+    stats[t1].played++;
+    stats[t2].played++;
+    stats[t1].gamesWon += s1;
+    stats[t1].gamesLost += s2;
+    stats[t2].gamesWon += s2;
+    stats[t2].gamesLost += s1;
+
+    // LÓGICA DE PARTIDOS GANADOS (PG)
     if (s1 > s2) {
-      stats[m.team1Id].won++;
-      stats[m.team1Id].points += 1;
-      stats[m.team2Id].lost++;
+      stats[t1].won += 1;   // Suma 1 a Partidos Ganados
+      stats[t1].points += 1; // Suma 1 a Puntos
+      stats[t2].lost += 1;
     } else if (s2 > s1) {
-      stats[m.team2Id].won++;
-      stats[m.team2Id].points += 1;
-      stats[m.team1Id].lost++;
+      stats[t2].won += 1;   // Suma 1 a Partidos Ganados
+      stats[t2].points += 1; // Suma 1 a Puntos
+      stats[t1].lost += 1;
     }
   });
 
   return Object.values(stats)
-    .map((s: any) => ({ ...s, diff: s.gamesWon - s.gamesLost }))
-    .sort((a: any, b: any) => b.points - a.points || b.diff - a.diff || b.gamesWon - a.gamesWon);
+    .map((s: any) => ({ 
+      ...s, 
+      diff: s.gamesWon - s.gamesLost 
+    }))
+    .sort((a: any, b: any) => 
+      b.points - a.points || 
+      b.diff - a.diff || 
+      b.gamesWon - a.gamesWon
+    );
 };
 /**
  * Genera la primera fase de Playoffs (Cuartos o Semis) desde las zonas
