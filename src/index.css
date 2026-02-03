@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos base opcionales para mejorar el look */
+body {
+  margin: 0;
+  @apply bg-slate-50 text-slate-900;
+  -webkit-font-smoothing: antialiased;
+}

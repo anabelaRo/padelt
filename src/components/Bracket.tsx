@@ -1,69 +1,91 @@
 import React from 'react';
-import { Match, db } from '../db/db';
+import { Trophy } from 'lucide-react';
 
 interface BracketProps {
-  matches: Match[];
+  matches: any[];
+  onScoreUpdate: (match: any, newScore: string) => void;
 }
 
-const STAGE_ORDER = ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
-
-export default function Bracket({ matches }: BracketProps) {
-  if (!matches || matches.length === 0) return <p className="text-center text-slate-400 mt-8">No hay partidos eliminatorios.</p>;
-
-  const groupedMatches = STAGE_ORDER.reduce((acc, stage) => {
-    acc[stage] = matches.filter(m => m.stage === stage);
-    return acc;
-  }, {} as Record<string, Match[]>);
-
-  const renderMatch = (match: Match) => {
-    // Determine winner for styling
-    const [score1, score2] = match.score.split('-').map(Number);
-    const team1Won = score1 > score2;
-    const team2Won = score2 > score1;
-
-    return (
-      <div key={match.id} className="relative bg-white rounded-lg shadow-sm border border-slate-100 mb-2">
-        {/* Líneas de conexión si lo tuviéramos en un SVG, aquí es más visual */}
-        <div className="absolute top-1/2 -left-4 w-4 h-[1px] bg-slate-200"></div>
-        <div className="absolute top-1/2 -right-4 w-4 h-[1px] bg-slate-200"></div>
-
-
-        <div className="flex items-center text-sm font-medium p-2 border-b border-slate-50 last:border-b-0">
-          <span className={`flex-1 ${team1Won ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
-            {match.team1Id}
-          </span>
-          <input
-            type="text"
-            className="w-12 text-center font-mono font-bold bg-slate-100 rounded-md p-1 mx-1 text-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-300"
-            placeholder="-"
-            defaultValue={match.score}
-            onBlur={async (e) => {
-              if (match.id) {
-                await db.matches.update(match.id, { score: e.target.value.trim() });
-              }
-            }}
-          />
-          <span className={`flex-1 text-right ${team2Won ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
-            {match.team2Id}
-          </span>
-        </div>
-      </div>
-    );
+export default function Bracket({ matches, onScoreUpdate }: BracketProps) {
+  // Definimos las etapas en orden para renderizar las columnas
+  const stages = ['round_of_16', 'quarter', 'semi', 'final'];
+  const stageLabels: Record<string, string> = {
+    'round_of_16': 'Octavos',
+    'quarter': 'Cuartos',
+    'semi': 'Semis',
+    'final': 'Final'
   };
 
+  // Agrupamos los partidos por etapa
+  const matchesByStage = stages.reduce((acc, stage) => {
+    const stageMatches = matches.filter(m => m.stage === stage);
+    if (stageMatches.length > 0) acc[stage] = stageMatches;
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  if (Object.keys(matchesByStage).length === 0) {
+    return (
+      <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+        <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">Esperando resultados de zonas...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex justify-around gap-4 mt-8 overflow-x-auto p-2">
-      {STAGE_ORDER.map(stage => {
-        const stageMatches = groupedMatches[stage];
-        if (!stageMatches || stageMatches.length === 0) return null;
+    <div className="flex gap-8 pb-8 overflow-x-auto snap-x">
+      {stages.map((stage) => {
+        const stageMatches = matchesByStage[stage];
+        if (!stageMatches) return null;
 
         return (
-          <div key={stage} className="flex-shrink-0 w-60">
-            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest text-center mb-4">
-              {STAGE_LABELS[stage]}
-            </h3>
-            <div className="space-y-4">
-              {stageMatches.map(renderMatch)}
+          <div key={stage} className="flex-shrink-0 w-64 snap-center">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 pl-2">
+              {stageLabels[stage]}
+            </h4>
+            
+            <div className="flex flex-col justify-around h-full space-y-8">
+              {stageMatches.map((m, idx) => (
+                <div key={m.id || idx} className="relative">
+                  {/* Conector visual entre llaves (solo si no es la final) */}
+                  {stage !== 'final' && (
+                    <div className="absolute -right-4 top-1/2 w-4 h-px bg-slate-200" />
+                  )}
+
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    {/* Equipo 1 */}
+                    <div className="p-3 border-b border-slate-50 flex justify-between items-center">
+                      <span className={`text-xs font-bold truncate pr-2 ${m.team1Id === 'A confirmar' ? 'text-slate-300 italic' : 'text-slate-700'}`}>
+                        {m.team1Id}
+                      </span>
+                    </div>
+
+                    {/* Input de Score Centralizado */}
+                    <div className="bg-slate-50 px-3 py-2 flex justify-center">
+                      <input
+                        type="text"
+                        placeholder="0-0"
+                        defaultValue={m.score}
+                        onBlur={(e) => onScoreUpdate(m, e.target.value)}
+                        className="w-16 bg-white border border-slate-200 rounded-lg text-center font-mono font-black text-emerald-600 text-sm py-1 focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all"
+                      />
+                    </div>
+
+                    {/* Equipo 2 */}
+                    <div className="p-3 flex justify-between items-center">
+                      <span className={`text-xs font-bold truncate pr-2 ${m.team2Id === 'A confirmar' ? 'text-slate-300 italic' : 'text-slate-700'}`}>
+                        {m.team2Id}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Icono de corona si es la final y tiene resultado */}
+                  {stage === 'final' && m.score && (
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-500 animate-bounce">
+                      <Trophy size={20} fill="currentColor" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -71,13 +93,3 @@ export default function Bracket({ matches }: BracketProps) {
     </div>
   );
 }
-
-// Helper para los nombres de las etapas, replicado o importado desde TournamentDetail
-const STAGE_LABELS: Record<string, string> = {
-  group: 'Fase de Grupos',
-  round_of_32: '16avos',
-  round_of_16: '8vos',
-  quarter: 'Cuartos',
-  semi: 'Semis',
-  final: 'Final'
-};
